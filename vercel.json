@@ -1,11 +1,13 @@
 {
   "version": 2,
   "builds": [
-    { "src": "server.js", "use": "@vercel/node" }
+    { "src": "server.js", "use": "@vercel/node" },
+    { "src": "index.html", "use": "@vercel/static" },
+    { "src": "Logo-Camisa-Preta-1.png", "use": "@vercel/static" }
   ],
   "routes": [
     { "src": "/api/(.*)", "dest": "server.js" },
-    { "src": "/Logo-Camisa-Preta-1.png", "dest": "server.js" },
-    { "src": "/(.*)", "dest": "server.js" }
+    { "src": "/Logo-Camisa-Preta-1.png", "dest": "Logo-Camisa-Preta-1.png" },
+    { "src": "/(.*)", "dest": "index.html" }
   ]
 }

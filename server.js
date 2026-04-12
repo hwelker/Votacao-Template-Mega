@@ -102,7 +102,13 @@ app.get('/api/check/:email', (req, res) => {
   res.json({ voted, counts, total });
 });
 
-app.listen(PORT, () => {
-  console.log(`\n  Painel de Votacao Mega`);
-  console.log(`  http://localhost:${PORT}\n`);
-});
+// Local dev
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`\n  Painel de Votacao Mega`);
+    console.log(`  http://localhost:${PORT}\n`);
+  });
+}
+
+// Vercel serverless
+module.exports = app;
