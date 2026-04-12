@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "builds": [
+    { "src": "server.js", "use": "@vercel/node" }
+  ],
+  "routes": [
+    { "src": "/api/(.*)", "dest": "server.js" },
+    { "src": "/Logo-Camisa-Preta-1.png", "dest": "server.js" },
+    { "src": "/(.*)", "dest": "server.js" }
+  ]
+}
