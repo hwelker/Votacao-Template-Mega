@@ -10,7 +10,7 @@ const PORT = 3000;
 // ============================================================
 const CONFIG = {
   title: 'Votacao de Templates',
-  subtitle: 'Escolha o melhor design para a nova pagina da Mega',
+  subtitle: 'Escolha o melhor template de Pagina feito com IA',
   templates: [
     { id: 'template-1', name: 'Template A', url: 'https://advogado-tributario.vercel.app/', designer: 'Felipe Cavalcanti' },
     { id: 'template-2', name: 'Template B', url: 'https://mega-ads.vercel.app/', designer: 'Felipe Nascimento' },
