@@ -862,7 +862,15 @@
     'use strict';
 
     // --- State ---
-    let config = null;
+    let config = {
+      title: 'Votacao de Templates',
+      subtitle: 'Escolha o melhor template de Pagina feito com IA',
+      templates: [
+        { id: 'template-1', name: 'Template A', url: 'https://advogado-tributario.vercel.app/', designer: 'Felipe Cavalcanti' },
+        { id: 'template-2', name: 'Template B', url: 'https://mega-ads.vercel.app/', designer: 'Felipe Nascimento' },
+        { id: 'template-3', name: 'Template C', url: 'https://todescatto-advocacia.vercel.app/', designer: 'Stanley' },
+      ],
+    };
     let selectedTemplateId = null;
     let userEmail = localStorage.getItem('mega_vote_email') || '';
     let userVote = localStorage.getItem('mega_vote_choice') || null;
@@ -876,27 +884,18 @@
     };
 
     // --- Init ---
-    async function init() {
-      try {
-        const res = await fetch('/api/config');
-        config = await res.json();
-        document.getElementById('page-title').textContent = config.title;
-        document.getElementById('page-subtitle').textContent = config.subtitle;
-        document.title = config.title + ' | Mega';
-        renderCards();
-        setupRevealObserver();
+    function init() {
+      document.getElementById('page-title').textContent = config.title;
+      document.getElementById('page-subtitle').textContent = config.subtitle;
+      document.title = config.title + ' | Mega';
+      renderCards();
+      setupRevealObserver();
 
-        if (userEmail) {
-          const check = await fetch('/api/check/' + encodeURIComponent(userEmail));
-          const data = await check.json();
-          if (data.voted) {
-            userVote = data.voted;
-            localStorage.setItem('mega_vote_choice', data.voted);
-            showResults(data.counts, data.total, data.voted);
-          }
-        }
-      } catch (err) {
-        console.error('Erro ao carregar:', err);
+      if (userVote) {
+        var counts = {};
+        config.templates.forEach(function(t) { counts[t.id] = 0; });
+        counts[userVote] = 1;
+        showResults(counts, 1, userVote);
       }
     }
 
@@ -1019,13 +1018,12 @@
     });
 
     // --- Vote ---
-    document.getElementById('vote-form').addEventListener('submit', async function(e) {
+    document.getElementById('vote-form').addEventListener('submit', function(e) {
       e.preventDefault();
       if (!selectedTemplateId) return;
 
       var inp = document.getElementById('email-input');
       var errEl = document.getElementById('email-error');
-      var btn = document.getElementById('submit-btn');
       var email = inp.value.trim().toLowerCase();
 
       if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -1037,37 +1035,18 @@
       inp.classList.remove('has-error');
       errEl.classList.remove('show');
 
-      btn.disabled = true;
-      btn.innerHTML = '<div class="waiting-ring" style="width:18px;height:18px;border-width:2px;"></div> Registrando...';
+      userEmail = email;
+      userVote = selectedTemplateId;
+      localStorage.setItem('mega_vote_email', email);
+      localStorage.setItem('mega_vote_choice', selectedTemplateId);
 
-      try {
-        var res = await fetch('/api/vote', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: email, template: selectedTemplateId }),
-        });
-        var data = await res.json();
+      var counts = {};
+      config.templates.forEach(function(t) { counts[t.id] = 0; });
+      counts[selectedTemplateId] = 1;
 
-        if (!res.ok) {
-          inp.classList.add('has-error');
-          errEl.textContent = data.error;
-          errEl.classList.add('show');
-          resetSubmitBtn();
-          return;
-        }
-
-        userEmail = email;
-        userVote = selectedTemplateId;
-        localStorage.setItem('mega_vote_email', email);
-        localStorage.setItem('mega_vote_choice', selectedTemplateId);
-        closeModal();
-        showResults(data.counts, data.total, data.voted);
-        toast('Voto registrado com sucesso!', 'success');
-      } catch (err) {
-        errEl.textContent = 'Erro de conexao. Tente novamente.';
-        errEl.classList.add('show');
-        resetSubmitBtn();
-      }
+      closeModal();
+      showResults(counts, 1, selectedTemplateId);
+      toast('Voto registrado com sucesso!', 'success');
     });
 
     function resetSubmitBtn() {
