@@ -854,12 +854,20 @@
     </div>
   </div>
 
+  <!-- Supabase JS Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
   <!-- ================================================================
        JAVASCRIPT
        ================================================================ -->
   <script>
   (function() {
     'use strict';
+
+    // --- Supabase ---
+    var SUPABASE_URL = 'https://ytxrfhdhizwlpzhgpkfi.supabase.co';
+    var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl0eHJmaGRoaXp3bHB6aGdwa2ZpIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjA1NDUxNiwiZXhwIjoyMDkxNjMwNTE2fQ.8_NlYfuEf0jEn3kgToRB3-_1jf4wMQunEhUJK2tw1hw';
+    var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     // --- State ---
     let config = {
@@ -883,18 +891,25 @@
       crown: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M2 20h20M5 17l-1-12 5.5 5L12 3l2.5 7L20 5l-1 12"/></svg>',
     };
 
-    // --- Votes storage (localStorage) ---
-    function loadVotes() {
-      try { return JSON.parse(localStorage.getItem('mega_votes') || '{}'); }
-      catch(e) { return {}; }
+    // --- Supabase votes ---
+    async function loadVotesFromSupabase() {
+      var { data, error } = await supabase.from('votes').select('email, template_id');
+      if (error) { console.error('Erro ao carregar votos:', error); return {}; }
+      var votes = {};
+      data.forEach(function(row) { votes[row.email] = row.template_id; });
+      return votes;
     }
-    function saveVote(email, templateId) {
-      var votes = loadVotes();
-      votes[email] = templateId;
-      localStorage.setItem('mega_votes', JSON.stringify(votes));
+
+    async function saveVoteToSupabase(email, templateId) {
+      var { error } = await supabase.from('votes').upsert(
+        { email: email, template_id: templateId },
+        { onConflict: 'email' }
+      );
+      if (error) { console.error('Erro ao salvar voto:', error); return false; }
+      return true;
     }
-    function getCounts() {
-      var votes = loadVotes();
+
+    function getCountsFromVotes(votes) {
       var counts = {};
       config.templates.forEach(function(t) { counts[t.id] = 0; });
       Object.values(votes).forEach(function(tid) {
@@ -905,16 +920,26 @@
     }
 
     // --- Init ---
-    function init() {
+    async function init() {
       document.getElementById('page-title').textContent = config.title;
       document.getElementById('page-subtitle').textContent = config.subtitle;
       document.title = config.title + ' | Mega';
       renderCards();
       setupRevealObserver();
 
-      if (userVote) {
-        var r = getCounts();
-        showResults(r.counts, r.total, userVote);
+      // Load votes from Supabase and check if user already voted
+      var votes = await loadVotesFromSupabase();
+      if (userEmail && votes[userEmail]) {
+        userVote = votes[userEmail];
+        localStorage.setItem('mega_vote_choice', userVote);
+      }
+      if (userVote || Object.keys(votes).length > 0) {
+        var r = getCountsFromVotes(votes);
+        if (userVote) {
+          showResults(r.counts, r.total, userVote);
+        } else if (r.total > 0) {
+          showResults(r.counts, r.total, null);
+        }
       }
     }
 
@@ -1037,12 +1062,13 @@
     });
 
     // --- Vote ---
-    document.getElementById('vote-form').addEventListener('submit', function(e) {
+    document.getElementById('vote-form').addEventListener('submit', async function(e) {
       e.preventDefault();
       if (!selectedTemplateId) return;
 
       var inp = document.getElementById('email-input');
       var errEl = document.getElementById('email-error');
+      var btn = document.getElementById('submit-btn');
       var email = inp.value.trim().toLowerCase();
 
       if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -1054,16 +1080,28 @@
       inp.classList.remove('has-error');
       errEl.classList.remove('show');
 
+      btn.disabled = true;
+      btn.innerHTML = ICON.check + ' Enviando...';
+
+      var ok = await saveVoteToSupabase(email, selectedTemplateId);
+      if (!ok) {
+        btn.disabled = false;
+        btn.innerHTML = ICON.check + ' Confirmar Voto';
+        toast('Erro ao registrar voto. Tente novamente.', 'error');
+        return;
+      }
+
       userEmail = email;
       userVote = selectedTemplateId;
       localStorage.setItem('mega_vote_email', email);
       localStorage.setItem('mega_vote_choice', selectedTemplateId);
-      saveVote(email, selectedTemplateId);
 
-      var r = getCounts();
+      var votes = await loadVotesFromSupabase();
+      var r = getCountsFromVotes(votes);
       closeModal();
       showResults(r.counts, r.total, selectedTemplateId);
       toast('Voto registrado com sucesso!', 'success');
+      resetSubmitBtn();
     });
 
     function resetSubmitBtn() {
