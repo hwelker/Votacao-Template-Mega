@@ -883,6 +883,27 @@
       crown: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M2 20h20M5 17l-1-12 5.5 5L12 3l2.5 7L20 5l-1 12"/></svg>',
     };
 
+    // --- Votes storage (localStorage) ---
+    function loadVotes() {
+      try { return JSON.parse(localStorage.getItem('mega_votes') || '{}'); }
+      catch(e) { return {}; }
+    }
+    function saveVote(email, templateId) {
+      var votes = loadVotes();
+      votes[email] = templateId;
+      localStorage.setItem('mega_votes', JSON.stringify(votes));
+    }
+    function getCounts() {
+      var votes = loadVotes();
+      var counts = {};
+      config.templates.forEach(function(t) { counts[t.id] = 0; });
+      Object.values(votes).forEach(function(tid) {
+        if (counts[tid] !== undefined) counts[tid]++;
+      });
+      var total = Object.values(counts).reduce(function(s, c) { return s + c; }, 0);
+      return { counts: counts, total: total };
+    }
+
     // --- Init ---
     function init() {
       document.getElementById('page-title').textContent = config.title;
@@ -892,10 +913,8 @@
       setupRevealObserver();
 
       if (userVote) {
-        var counts = {};
-        config.templates.forEach(function(t) { counts[t.id] = 0; });
-        counts[userVote] = 1;
-        showResults(counts, 1, userVote);
+        var r = getCounts();
+        showResults(r.counts, r.total, userVote);
       }
     }
 
@@ -1039,13 +1058,11 @@
       userVote = selectedTemplateId;
       localStorage.setItem('mega_vote_email', email);
       localStorage.setItem('mega_vote_choice', selectedTemplateId);
+      saveVote(email, selectedTemplateId);
 
-      var counts = {};
-      config.templates.forEach(function(t) { counts[t.id] = 0; });
-      counts[selectedTemplateId] = 1;
-
+      var r = getCounts();
       closeModal();
-      showResults(counts, 1, selectedTemplateId);
+      showResults(r.counts, r.total, selectedTemplateId);
       toast('Voto registrado com sucesso!', 'success');
     });
 
